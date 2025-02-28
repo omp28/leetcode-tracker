@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import SubmissionCard from "../components/SubmissionCard";
 import AddUserForm from "../components/AddUserForm";
-import StatisticsSection from "../components/StatisticsSection";
+import LeaderboardStats from "../components/LeaderboardStats";
 import { filterSubmissionsByDate } from "../utils/date-utils";
 
 export default function Home() {
@@ -10,7 +10,7 @@ export default function Home() {
   const [userSubmissions, setUserSubmissions] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // Fetch users and their submissions
   const fetchData = async () => {
@@ -41,11 +41,6 @@ export default function Home() {
       }
 
       setUserSubmissions(submissionsData);
-
-      // Set first user as selected if available and none selected
-      if (usersData.users.length > 0 && !selectedUser) {
-        setSelectedUser(usersData.users[0].username);
-      }
     } catch (error) {
       setError("Failed to load data: " + error.message);
     } finally {
@@ -58,38 +53,76 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Get submissions for selected user
-  const selectedUserSubmissions = selectedUser
-    ? userSubmissions[selectedUser] || []
-    : [];
-  const submissionsByPeriod = filterSubmissionsByDate(selectedUserSubmissions);
+  // Calculate user rankings based on today's accepted submissions
+  const calculateRankings = () => {
+    return users
+      .map((user) => {
+        const submissions = userSubmissions[user.username] || [];
+        const today = new Date().toDateString();
+
+        const todayAccepted = submissions.filter((sub) => {
+          const subDate = new Date(parseInt(sub.timestamp) * 1000);
+          return (
+            subDate.toDateString() === today && sub.statusDisplay === "Accepted"
+          );
+        }).length;
+
+        return {
+          ...user,
+          todayAccepted,
+        };
+      })
+      .sort((a, b) => b.todayAccepted - a.todayAccepted);
+  };
+
+  const rankedUsers = calculateRankings();
 
   return (
-    <div className="min-h-screen bg-gray-50 text-black">
+    <div className="min-h-screen bg-gray-100 ">
       <Head>
-        <title>LeetCode Progress Tracker</title>
-        <meta name="description" content="Track your LeetCode progress" />
+        <title>LeetCode Competitive Tracker</title>
+        <meta
+          name="description"
+          content="Track and compete with peers on LeetCode"
+        />
         <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <div className="container mx-auto px-4 py-8">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-800">
-            LeetCode Progress Tracker
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Keep track of your LeetCode journey
+      <div className="max-w-lg mx-auto px-4 py-6 sm:px-6 lg:max-w-xl">
+        <header className="mb-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900">LeetCode Arena</h1>
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded-full hover:bg-blue-700"
+            >
+              {showAddForm ? "Hide Form" : "+ Add User"}
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">
+            Daily competition to solve more problems
           </p>
         </header>
 
-        <AddUserForm onUserAdded={fetchData} />
+        {showAddForm && (
+          <div className="mb-6">
+            <AddUserForm
+              onUserAdded={() => {
+                fetchData();
+                setShowAddForm(false);
+              }}
+            />
+          </div>
+        )}
 
         {isLoading ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600">Loading data...</p>
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+            <p className="mt-2 text-gray-600">Loading submissions...</p>
           </div>
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="bg-white rounded-lg shadow p-6 text-center">
             <p className="text-red-600">{error}</p>
             <button
               onClick={fetchData}
@@ -99,63 +132,38 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          <div>
+          <>
             {users.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
+              <div className="bg-white rounded-lg shadow p-6 text-center">
                 <p className="text-gray-600">
-                  No users added yet. Add a LeetCode user to get started!
+                  No users added yet. Add a LeetCode user to start competing!
                 </p>
               </div>
             ) : (
-              <div>
-                <div className="mb-6">
-                  <label
-                    htmlFor="userSelect"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Select User for Statistics:
-                  </label>
-                  <select
-                    id="userSelect"
-                    value={selectedUser || ""}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                    className="w-full md:w-64 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {users.map((user) => (
-                      <option key={user.username} value={user.username}>
-                        {user.displayName || user.username}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <>
+                <LeaderboardStats
+                  users={users}
+                  userSubmissions={userSubmissions}
+                />
 
-                {selectedUser && (
-                  <StatisticsSection
-                    submissionsByPeriod={submissionsByPeriod}
-                  />
-                )}
-
-                <h2 className="text-xl font-bold mb-4">All Users</h2>
-
-                <div className="space-y-4">
-                  {users.map((user) => (
+                <div className="space-y-4 mb-6">
+                  {rankedUsers.map((user, index) => (
                     <SubmissionCard
                       key={user.username}
                       user={user}
                       submissions={userSubmissions[user.username] || []}
+                      rank={index}
                     />
                   ))}
                 </div>
-              </div>
+              </>
             )}
-          </div>
+          </>
         )}
       </div>
 
-      <footer className="mt-12 py-6 bg-gray-100">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>LeetCode Progress Tracker &copy; {new Date().getFullYear()}</p>
-        </div>
+      <footer className="py-6 text-center text-sm text-gray-500">
+        <p>LeetCode Arena &copy; {new Date().getFullYear()}</p>
       </footer>
     </div>
   );
