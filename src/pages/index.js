@@ -3,7 +3,7 @@ import Head from "next/head";
 import SubmissionCard from "../components/SubmissionCard";
 import AddUserForm from "../components/AddUserForm";
 import LeaderboardStats from "../components/LeaderboardStats";
-import { filterSubmissionsByDate } from "../utils/date-utils";
+import { filterSubmissionsByDate, isAfter5AM } from "../utils/date-utils";
 
 export default function Home() {
   const [users, setUsers] = useState([]);
@@ -11,6 +11,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [expandedUser, setExpandedUser] = useState(null);
 
   // Fetch users and their submissions
   const fetchData = async () => {
@@ -53,23 +54,20 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Calculate user rankings based on today's accepted submissions
+  // Calculate user rankings based on today's accepted submissions (after 5 AM)
   const calculateRankings = () => {
     return users
       .map((user) => {
         const submissions = userSubmissions[user.username] || [];
-        const today = new Date().toDateString();
-
-        const todayAccepted = submissions.filter((sub) => {
+        const todaySubmissions = submissions.filter((sub) => {
           const subDate = new Date(parseInt(sub.timestamp) * 1000);
-          return (
-            subDate.toDateString() === today && sub.statusDisplay === "Accepted"
-          );
-        }).length;
+          return isAfter5AM(subDate) && sub.statusDisplay === "Accepted";
+        });
 
         return {
           ...user,
-          todayAccepted,
+          todayAccepted: todaySubmissions.length,
+          todaySubmissions, // Store today's submissions for display
         };
       })
       .sort((a, b) => b.todayAccepted - a.todayAccepted);
@@ -77,8 +75,12 @@ export default function Home() {
 
   const rankedUsers = calculateRankings();
 
+  const handleExpand = (username) => {
+    setExpandedUser(expandedUser === username ? null : username);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 ">
+    <div className="min-h-screen bg-gray-100 text-gray-800">
       <Head>
         <title>LeetCode Competitive Tracker</title>
         <meta
@@ -89,18 +91,18 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <div className="max-w-lg mx-auto px-4 py-6 sm:px-6 lg:max-w-xl">
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6">
         <header className="mb-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">LeetCode Arena</h1>
+            <h1 className="text-3xl font-bold text-gray-900">LeetCode Arena</h1>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="px-3 py-1 bg-blue-600 text-white text-sm rounded-full hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
             >
               {showAddForm ? "Hide Form" : "+ Add User"}
             </button>
           </div>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600">
             Daily competition to solve more problems
           </p>
         </header>
@@ -148,12 +150,122 @@ export default function Home() {
 
                 <div className="space-y-4 mb-6">
                   {rankedUsers.map((user, index) => (
-                    <SubmissionCard
+                    <div
                       key={user.username}
-                      user={user}
-                      submissions={userSubmissions[user.username] || []}
-                      rank={index}
-                    />
+                      className="bg-white rounded-lg shadow"
+                    >
+                      <div
+                        className="flex items-center p-4 cursor-pointer"
+                        onClick={() => handleExpand(user.username)}
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${getRankColor(
+                            index
+                          )}`}
+                        >
+                          <span className="text-white font-bold">
+                            {index + 1}
+                          </span>
+                        </div>
+
+                        <div className="flex-grow">
+                          <h3 className="font-bold">
+                            {user.displayName || user.username}
+                          </h3>
+                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                            {user.todayAccepted > 0 && (
+                              <div className="flex items-center">
+                                <span className="text-green-600">✔</span>
+                                <span className="ml-1">
+                                  {user.todayAccepted} today
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <button
+                            className={`text-blue-500 transition-transform duration-200 ${
+                              expandedUser === user.username
+                                ? "transform rotate-180"
+                                : ""
+                            }`}
+                            aria-label={
+                              expandedUser === user.username
+                                ? "Collapse"
+                                : "Expand"
+                            }
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      </div>
+
+                      {expandedUser === user.username && (
+                        <div className="px-4 pb-4">
+                          <div className="border-t pt-3">
+                            <h4 className="font-medium text-sm mb-2">
+                              Today's Submissions:
+                            </h4>
+
+                            {user.todaySubmissions.length === 0 ? (
+                              <p className="text-gray-500 italic text-sm">
+                                No submissions today (after 5 AM).
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {user.todaySubmissions.map(
+                                  (submission, index) => (
+                                    <div
+                                      key={index}
+                                      className={`p-2 border rounded text-sm ${
+                                        submission.statusDisplay === "Accepted"
+                                          ? "border-green-200 bg-green-50"
+                                          : "border-red-200 bg-red-50"
+                                      }`}
+                                    >
+                                      <div className="flex justify-between">
+                                        <span className="font-medium truncate mr-2">
+                                          {submission.title}
+                                        </span>
+                                        <span
+                                          className={`whitespace-nowrap ${
+                                            submission.statusDisplay ===
+                                            "Accepted"
+                                              ? "text-green-600"
+                                              : "text-red-600"
+                                          }`}
+                                        >
+                                          {submission.statusDisplay}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                        <span>{submission.lang}</span>
+                                        <span>
+                                          {formatTimestamp(
+                                            submission.timestamp
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            )}
+
+                            <div className="mt-4 text-center">
+                              <a
+                                href={`/user/${user.username}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                View all submissions →
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </>
@@ -167,4 +279,17 @@ export default function Home() {
       </footer>
     </div>
   );
+}
+
+function getRankColor(rank) {
+  switch (rank) {
+    case 0:
+      return "bg-yellow-500"; // Gold
+    case 1:
+      return "bg-gray-400"; // Silver
+    case 2:
+      return "bg-amber-600"; // Bronze
+    default:
+      return "bg-blue-500"; // Others
+  }
 }

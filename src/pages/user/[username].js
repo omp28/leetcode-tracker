@@ -115,7 +115,7 @@ export default function UserProfile() {
     .slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 text-gray-800">
       <Head>
         <title>
           {userData.displayName || userData.username} - LeetCode Tracker

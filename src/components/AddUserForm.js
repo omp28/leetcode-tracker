@@ -49,9 +49,8 @@ export default function AddUserForm({ onUserAdded }) {
   };
 
   return (
-    <div className="border rounded-lg p-4 mb-6 shadow-sm">
+    <div className="border rounded-lg p-4 mb-6 shadow-sm bg-white">
       <h2 className="text-lg font-bold mb-4">Add LeetCode User</h2>
-
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -71,7 +70,6 @@ export default function AddUserForm({ onUserAdded }) {
               required
             />
           </div>
-
           <div>
             <label
               htmlFor="displayName"
@@ -89,9 +87,7 @@ export default function AddUserForm({ onUserAdded }) {
             />
           </div>
         </div>
-
         {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
-
         <div className="mt-4">
           <button
             type="submit"

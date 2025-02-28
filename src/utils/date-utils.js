@@ -1,5 +1,13 @@
 import { startOfDay, subDays, startOfWeek, subMonths, format } from "date-fns";
 
+export function isAfter5AM(date) {
+  const today = new Date();
+  const today5AM = new Date(today);
+  today5AM.setHours(5, 0, 0, 0); // Set to today at 5 AM
+
+  return date >= today5AM;
+}
+
 export function filterSubmissionsByDate(submissions) {
   const now = new Date();
   const today = startOfDay(now).getTime() / 1000;
