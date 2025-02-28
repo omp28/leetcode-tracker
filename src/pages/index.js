@@ -206,7 +206,7 @@ export default function Home() {
                         <div className="px-4 pb-4">
                           <div className="border-t pt-3">
                             <h4 className="font-medium text-sm mb-2">
-                              Today's Submissions:
+                              Today&apos;s Submissions:
                             </h4>
 
                             {user.todaySubmissions.length === 0 ? (
