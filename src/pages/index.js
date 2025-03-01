@@ -4,6 +4,7 @@ import SubmissionCard from "../components/SubmissionCard";
 import AddUserForm from "../components/AddUserForm";
 import LeaderboardStats from "../components/LeaderboardStats";
 import { filterSubmissionsByDate, isAfter5AM } from "../utils/date-utils";
+import { formatTimestamp } from "../utils/date-utils";
 
 export default function Home() {
   const [users, setUsers] = useState([]);
